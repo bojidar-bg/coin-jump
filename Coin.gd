@@ -4,20 +4,22 @@ const Platform = preload("res://Platform.gd")
 export var camera_holder_path := @"../CameraOrigin"
 const reset_height = -48.0
 const camera_smoothing = 3.0
-const camera_rotation_acceleration = PI / 4
-const camera_rotation_damp = 0.999
-const charging_time = 2.2
+const camera_rotation_speed = 7.0
+const camera_rotation_smoothing = 9.0
+const charging_time = 2.0
 const charged_impulse = Vector3(0.0, 18.0, -12.0)
 const stable_time = 0.7
+const max_zoom_distance = 20.0
+const zoom_easing = -1
 var power_level := 0.0
 var power_overflow := false
-var camera_rotation_velocity := 0.0
+var camera_rotation := 0.0
 var stable_since := 0.0
-onready var camera_holder = get_node(camera_holder_path)
-onready var heads = $Heads as RayCast
-onready var tails = $Tails as RayCast
-onready var last_stable_position = global_transform.origin
-onready var last_stable_rotation = rotation
+onready var camera_holder := get_node(camera_holder_path) as Spatial
+onready var heads := $Heads as RayCast
+onready var tails := $Tails as RayCast
+onready var last_stable_position := global_transform.origin
+onready var last_stable_rotation := rotation
 
 # Called when the node enters the scene tree for the first time.
 func _ready() -> void:
@@ -25,20 +27,19 @@ func _ready() -> void:
 	update_particles()
 
 func _physics_process(delta: float) -> void:
-	var camera_current_pos = camera_holder.global_transform.origin
-	camera_holder.global_transform.origin = camera_current_pos.linear_interpolate(
-		global_transform.origin,
+	camera_holder.translation = camera_holder.translation.linear_interpolate(
+		translation,
 		delta * camera_smoothing)
+	camera_holder.scale = Vector3(1, 1, 1) * (1 + ease(camera_holder.translation.distance_to(translation) / max_zoom_distance, zoom_easing))
 	
 	var input_rotation = Input.get_action_strength("turn_left") - Input.get_action_strength("turn_right")
-	camera_rotation_velocity += camera_rotation_acceleration * delta * input_rotation
-	camera_holder.global_rotate(Vector3(0, 1, 0), camera_rotation_velocity)
-	camera_rotation_velocity *= pow(1 - camera_rotation_damp, delta)
+	camera_rotation += camera_rotation_speed * delta * input_rotation
+	camera_holder.rotation.y = lerp(camera_holder.rotation.y, camera_rotation, camera_rotation_smoothing * delta)
 	
 	if Input.is_action_pressed("power"):
 		if not power_overflow:
 			power_level += delta / charging_time
-			if power_level > 1.0:
+			if power_level > 1.1:
 				power_overflow = true
 				power_level = 0.0
 			update_particles()
@@ -48,7 +49,7 @@ func _physics_process(delta: float) -> void:
 			#angular_velocity += Vector3(power_level * charged_angular_velocity, 0, 0)
 			apply_impulse(
 				camera_basis * Vector3(0, 0, 0.5),
-				camera_basis * charged_impulse * power_level
+				camera_basis * charged_impulse * clamp(power_level, 0, 1)
 			)
 			power_level = 0
 			update_particles()
@@ -57,20 +58,22 @@ func _physics_process(delta: float) -> void:
 	var is_stable = false
 	if stable_since > stable_time:
 		is_stable = true
-	if heads.is_colliding() and heads.get_collider() is Platform and is_pointing_down(heads):
+	if heads.is_colliding() and is_pointing_down(heads):
 		stable_since += delta
-		var collider = heads.get_collider() as Platform
-		if collider.mode == 1 and stable_since > stable_time:
-			win()
-		elif collider.mode == 3:
-			die()
-	elif tails.is_colliding() and tails.get_collider() is Platform and is_pointing_down(tails):
+		if heads.get_collider() is Platform:
+			var collider = heads.get_collider() as Platform
+			if collider.mode == 1 and stable_since > stable_time:
+				win()
+			elif collider.mode == 3:
+				die()
+	elif tails.is_colliding() and is_pointing_down(tails):
 		stable_since += delta
-		var collider = tails.get_collider() as Platform
-		if collider.mode == 1 and stable_since > stable_time:
-			win()
-		elif collider.mode == 2:
-			die()
+		if tails.get_collider() is Platform:
+			var collider = tails.get_collider() as Platform
+			if collider.mode == 1 and stable_since > stable_time:
+				win()
+			elif collider.mode == 2:
+				die()
 	else:
 		stable_since = 0.0
 	update_stability()
@@ -99,6 +102,7 @@ func update_stability():
 	var material := stability.get_surface_material(0) as ShaderMaterial
 	material.set_shader_param("texture_offset", clamp(stable_since / stable_time, 0, 1))
 	stability.global_transform.basis = Basis().scaled(stability.global_transform.basis.get_scale())
+	stability.visible = stable_since > 0
 
 func is_pointing_down(r: RayCast):
 	return r.global_transform.basis.xform(r.cast_to).normalized().dot(Vector3(0, -1, 0)) > 0.7
