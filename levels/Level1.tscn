@@ -36,7 +36,7 @@ mode = 1
 transform = Transform( 1, 0, 0, 0, 0.965926, -0.258819, 0, 0.258819, 0.965926, 0, 0, -29 )
 
 [node name="Player" parent="." instance=ExtResource( 1 )]
-transform = Transform( 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.841447, 0 )
+transform = Transform( 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.718393, 0 )
 next_level = "res://levels/Level2.tscn"
 
 [node name="Viewport" type="Viewport" parent="."]
