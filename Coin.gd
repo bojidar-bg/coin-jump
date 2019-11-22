@@ -1,6 +1,6 @@
 extends RigidBody
 
-const Platform = preload("res://Platform.gd")
+const Platform = preload("res://platforms/Platform.gd")
 export var camera_holder_path := @"../CameraOrigin"
 export var shadow_path := @"../Shadow"
 export var power_bar_path := @"../PowerProgress"
@@ -22,7 +22,6 @@ var power_level := 0.0
 var power_overflow := false
 var camera_rotation_speed := Vector2(0.0, 0.0)
 var camera_rotation := Vector2(0.0, deg2rad(-28.559))
-var mouse_rotation_input := 0.0
 var camera_rotation_target = null
 var stable_since := 0.0
 onready var camera_holder := get_node(camera_holder_path) as Spatial
@@ -106,24 +105,15 @@ func _physics_process(delta: float) -> void:
 			update_power()
 		power_overflow = false
 	
-	var is_stable = false
-	if stable_since > stable_time:
-		is_stable = true
 	if heads.is_colliding() and is_pointing_down(heads):
 		stable_since += delta
-		if heads.get_collider() is Platform:
-			var collider = heads.get_collider() as Platform
-			if collider.mode == 1 and stable_since > stable_time:
-				win()
-			elif collider.mode == 3 or collider.mode == 4:
+		if heads.get_collider().has_method("_land"):
+			if heads.get_collider()._land(0, stable_since > stable_time) == false:
 				die()
 	elif tails.is_colliding() and is_pointing_down(tails):
 		stable_since += delta
-		if tails.get_collider() is Platform:
-			var collider = tails.get_collider() as Platform
-			if collider.mode == 1 and stable_since > stable_time:
-				win()
-			elif collider.mode == 2 or collider.mode == 4:
+		if tails.get_collider().has_method("_land"):
+			if tails.get_collider()._land(1, stable_since > stable_time) == false:
 				die()
 	else:
 		stable_since = 0.0
