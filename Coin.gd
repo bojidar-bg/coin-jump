@@ -115,7 +115,7 @@ func _physics_process(delta: float) -> void:
 			var collider = heads.get_collider() as Platform
 			if collider.mode == 1 and stable_since > stable_time:
 				win()
-			elif collider.mode == 3:
+			elif collider.mode == 3 or collider.mode == 4:
 				die()
 	elif tails.is_colliding() and is_pointing_down(tails):
 		stable_since += delta
@@ -123,7 +123,7 @@ func _physics_process(delta: float) -> void:
 			var collider = tails.get_collider() as Platform
 			if collider.mode == 1 and stable_since > stable_time:
 				win()
-			elif collider.mode == 2:
+			elif collider.mode == 2 or collider.mode == 4:
 				die()
 	else:
 		stable_since = 0.0
